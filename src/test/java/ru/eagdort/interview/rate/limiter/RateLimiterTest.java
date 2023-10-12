@@ -1,5 +1,6 @@
 package ru.eagdort.interview.rate.limiter;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -26,6 +27,8 @@ import java.util.stream.IntStream;
 class RateLimiterTest {
 
     private static final int rate = 5;
+    // Счётчик прошедших запросов, обнуляем после каждой прошедшей секунды
+    private static int assertionCount = 0;
 
     private static final RateLimiter limiter = new WindowRateLimiter(rate);
 
@@ -58,18 +61,20 @@ class RateLimiterTest {
 
             int delta = LocalTime.now().getSecond() - startTime.getSecond();
             System.out.println("--------------------------  [Прошло секунд: " + delta + "] -----------------------------");
+            // После каждой прошедшей секунды проверяем, соответствует ли количество прошедших запросов нашему ожиданию
+            Assertions.assertEquals(5, assertionCount);
+            assertionCount = 0;
         }
 
         executorService.shutdownNow();
-
-        //Your assertions...
-
     }
 
     //TODO Напишите тест для случая rate = 0
     @Test
     void should_BlockAllOutputEvents_When_RateEqualsZero() {
-
+        // Создаём новый лимитер, достаточно проверить, пройдёт ли запрос
+        RateLimiter limiter1 = new WindowRateLimiter(0);
+        Assertions.assertFalse(limiter1.accept());
     }
 
     /**
@@ -100,8 +105,11 @@ class RateLimiterTest {
                     Thread.currentThread().interrupt();
                     break;
                 }
-                long fromStart = Duration.between(startTime, LocalTime.now()).toMillis();
-                System.out.println(name + ": номер попытки вывода: " + attempt + " время после старта [мс]: " + fromStart);
+                if (limiter.accept()) {
+                    long fromStart = Duration.between(startTime, LocalTime.now()).toMillis();
+                    System.out.println(name + ": номер попытки вывода: " + attempt + " время после старта [мс]: " + fromStart);
+                    assertionCount++;
+                }
             }
         }
 

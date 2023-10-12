@@ -1,5 +1,6 @@
 package ru.eagdort.interview.rate.limiter;
 
+import java.time.LocalTime;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -15,6 +16,8 @@ import java.util.concurrent.TimeUnit;
 public class WindowRateLimiter implements RateLimiter {
 
     private final int rate;
+    private LocalTime startTime;
+    private int count;
 
     public WindowRateLimiter(int rate) {
         this.rate = rate;
@@ -22,13 +25,26 @@ public class WindowRateLimiter implements RateLimiter {
 
     @Override
     public boolean accept() {
-
         if (rate == 0) {
-            return false; // Ничего не пропускаем
+            return false;
         }
-
-        //.. Уour code
-        return true;
+        synchronized (this) {
+            if (startTime == null) {
+                startTime = LocalTime.now();
+            }
+            if (LocalTime.now().isBefore(startTime.plus(1, TimeUnit.SECONDS.toChronoUnit()))) {
+                if (count < rate) {
+                    count++;
+                    return true;
+                } else {
+                    return false;
+                }
+            }else {
+                startTime = startTime.plus(1, TimeUnit.SECONDS.toChronoUnit());
+                count = 1;
+                return true;
+            }
+        }
     }
 
 }
